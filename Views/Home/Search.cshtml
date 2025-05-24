@@ -1,0 +1,47 @@
+@model List<DailyStream.Models.Video>
+@{
+    ViewData["Title"] = $"Búsqueda: {ViewBag.SearchQuery} - DailyStream";
+}
+
+@await Html.PartialAsync("_Header")
+
+<main class="bg-gray-900 min-h-screen py-8">
+    <div class="container mx-auto px-4">
+        <div class="mb-6">
+            <h2 class="text-white text-2xl font-bold">Resultados para: <span class="text-sky-500">@ViewBag.SearchQuery</span></h2>
+            <p class="text-gray-400 mt-1">Se encontraron @Model.Count resultados</p>
+        </div>
+        
+        @if (!string.IsNullOrEmpty(ViewBag.Error))
+        {
+            <div class="bg-sky-900 bg-opacity-30 border border-sky-800 text-sky-300 px-4 py-3 rounded mb-6">
+                @ViewBag.Error
+            </div>
+        }
+        
+        @if (Model != null && Model.Any())
+        {
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                @foreach (var video in Model)
+                {
+                    @await Html.PartialAsync("_VideoCard", video)
+                }
+            </div>
+        }
+        else
+        {
+            <div class="bg-gray-800 rounded-lg p-8 text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <h3 class="text-white text-xl font-semibold mb-2">No se encontraron resultados</h3>
+                <p class="text-gray-400">Intenta con otros términos de búsqueda.</p>
+                <a href="/" class="inline-block mt-4 bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg transition duration-300">
+                    Volver al inicio
+                </a>
+            </div>
+        }
+    </div>
+</main>
+
+@await Html.PartialAsync("_Footer")

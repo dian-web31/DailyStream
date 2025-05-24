@@ -1,0 +1,47 @@
+@model List<DailyStream.Models.Video>
+
+<div class="bg-gray-800 rounded-lg p-4">
+    <h3 class="text-white text-xl font-semibold mb-4">Videos recomendados</h3>
+    
+    <div class="space-y-4">
+        @foreach (var video in Model)
+        {
+      <a href="/Home/Watch?id=@video.Id" class="flex hover:bg-gray-700 rounded-lg p-2 transition duration-300">
+                <div class="w-40 h-24 flex-shrink-0 relative">
+                    <img 
+                        src="@(string.IsNullOrEmpty(video.ThumbnailSmallUrl) ? "/images/placeholder.jpg" : video.ThumbnailSmallUrl)" 
+                        alt="@video.Title" 
+                        class="w-full h-full object-cover rounded"
+                        loading="lazy"
+                    />
+                    <div class="absolute bottom-1 right-1 bg-black bg-opacity-70 text-white text-xs px-1 py-0.5 rounded">
+                        @{
+                            var minutes = video.Duration / 60;
+                            var seconds = video.Duration % 60;
+                        }
+                        @minutes:@seconds.ToString("00")
+                    </div>
+                </div>
+                <div class="ml-3 flex-1">
+                    <h4 class="text-white font-medium line-clamp-2 text-sm">@video.Title</h4>
+                    <p class="text-gray-400 text-xs mt-1">@video.Channel</p>
+                    <div class="flex items-center mt-1 text-xs text-gray-400">
+                        <span class="flex items-center mr-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            @video.ViewsTotal.ToString("N0")
+                        </span>
+                        <span class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                            </svg>
+                            @video.Likes.ToString("N0")
+                        </span>
+                    </div>
+                </div>
+            </a>
+        }
+    </div>
+</div>

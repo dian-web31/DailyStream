@@ -1,3 +1,7 @@
+using Microsoft.EntityFrameworkCore;
+using DailyStream.Services;
+using DailyStream.Models;
+
 namespace DailyStream
 {
     public class Program
@@ -5,6 +9,16 @@ namespace DailyStream
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+
+            // Configuración
+            builder.Services.AddSingleton<ApiConfig>();
+            builder.Services.AddHttpClient<DailymotionAuthService>();
+            builder.Services.AddHttpClient<DailymotionApiService>();
+            
+            // Configuración de la base de datos
+            builder.Services.AddDbContext<DailystreamContext>(options =>
+                options.UseSqlServer(builder.Configuration.GetConnectionString("ConnectionDailyStream")));
+
 
             // Add services to the container.
             builder.Services.AddControllersWithViews();
