@@ -110,33 +110,46 @@ namespace DailyStream.Controllers
         [HttpGet]
         public async Task<IActionResult> GetComments(string videoId)
         {
-            if (string.IsNullOrEmpty(videoId))
-            {
-                return Json(new { success = false, message = "VideoId es requerido." });
-            }
-
-            // Añade este header para forzar JSON
-            Response.Headers.Add("Content-Type", "application/json");
-
             try
             {
+                // Validación más robusta del videoId
+                if (string.IsNullOrWhiteSpace(videoId) || videoId.Length > 50)
+                {
+                    return Json(new { success = false, message = "El ID del video no es válido." });
+                }
+
+                // Log para diagnóstico
+                _logger.LogInformation($"Solicitud de comentarios para video: {videoId}");
+
                 var comentarios = await _context.Comentarios
+                    .Include(c => c.IdusuarioNavigation)
                     .Where(c => c.Idvideo == videoId)
                     .OrderByDescending(c => c.Fecha)
+                    .ThenByDescending(c => c.Id)
                     .Select(c => new {
-                        user = _context.Usuarios
-                            .Where(u => u.Idusuario == c.Idusuario)
-                            .Select(u => u.Username),
+                        user = c.IdusuarioNavigation != null ? c.IdusuarioNavigation.Username : "Usuario Desconocido",
                         content = c.Contenido,
+                        date = FormatDate(c.Fecha)
                     })
+                    .AsNoTracking() // Mejor rendimiento para solo lectura
                     .ToListAsync();
+
+                _logger.LogInformation($"Encontrados {comentarios.Count} comentarios para video {videoId}");
 
                 return Json(comentarios);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error al obtener comentarios");
-                return StatusCode(500, new { success = false, message = "Error al cargar comentarios" });
+                // Log detallado del error
+                _logger.LogError(ex, "Error al obtener comentarios para video {VideoId}. Error: {ErrorMessage}",
+                    videoId, ex.Message);
+
+                return Json(new
+                {
+                    success = false,
+                    message = "Error interno al cargar comentarios",
+                    details = ex.Message // Solo para desarrollo, quitar en producción
+                });
             }
         }
 
@@ -167,7 +180,7 @@ namespace DailyStream.Controllers
             return Json(new { likes = likesCount, isLiked });
         }
 
-        private string FormatDate(DateOnly date)
+        private static string FormatDate(DateOnly date)
         {
             // Si 'date' pudiera ser default(DateOnly) y eso causara problemas, se podría añadir una guarda.
             // Sin embargo, viniendo de un campo no nullable de EF Core, es menos probable.
