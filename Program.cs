@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using DailyStream.Services;
 using DailyStream.Models;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace DailyStream
 {
@@ -14,16 +15,30 @@ namespace DailyStream
             builder.Services.AddSingleton<ApiConfig>();
             builder.Services.AddHttpClient<DailymotionAuthService>();
             builder.Services.AddHttpClient<DailymotionApiService>();
-            
+
             // Configuración de la base de datos
             builder.Services.AddDbContext<DailystreamContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("ConnectionDailyStream")));
 
+            // Configurar autenticación
+            builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+                .AddCookie(options =>
+                {
+                    options.LoginPath = "/Account/Login";
+                    options.Cookie.HttpOnly = true;
+                });
 
             // Add services to the container.
-            builder.Services.AddControllersWithViews();
+            builder.Services.AddControllersWithViews()
+                 .AddJsonOptions(options => {
+                     options.JsonSerializerOptions.PropertyNamingPolicy = null;
+                 });
 
             var app = builder.Build();
+
+            // Configurar el pipeline HTTP
+            app.UseAuthentication();
+            app.UseAuthorization();
 
             // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())

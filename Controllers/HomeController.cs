@@ -16,6 +16,8 @@ public class HomeController : Controller
         _logger = logger;
     }
 
+    // 
+
     [HttpGet]
     public async Task<IActionResult> Index() 
     {

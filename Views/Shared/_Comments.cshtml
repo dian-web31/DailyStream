@@ -1,53 +1,215 @@
-@model string
+﻿@model string // El model es el videoId
 
-<div class="bg-gray-800 rounded-lg p-4">
-    <h3 class="text-white text-xl font-semibold mb-4">Comentarios</h3>
-    
-    <div class="mb-6">
-        <form class="flex flex-col">
-            <textarea 
-                placeholder="Escribe un comentario..." 
-                class="w-full px-4 py-2 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-sky-500 mb-2"
-                rows="3"
-            ></textarea>
-            <button 
-                type="button" 
-                class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg transition duration-300 self-end"
-            >
-                Comentar
-            </button>
-        </form>
+<div class="rounded-lg bg-gray-800 p-4">
+    <h3 class="mb-4 text-xl font-semibold text-white">Comentarios</h3>
+
+    @if (User.Identity != null && User.Identity.IsAuthenticated) // Comprobación de nulidad para User.Identity
+    {
+        <div class="mb-6">
+            <form id="commentForm" data-video-id="@Model">
+                @Html.AntiForgeryToken()
+                <textarea id="commentContent"
+                          placeholder="Escribe un comentario..."
+                          class="mb-2 w-full rounded-lg border border-gray-600 bg-gray-700 px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                          rows="3"
+                          required></textarea>
+                <button type="submit"
+                        class="self-end rounded-lg bg-sky-600 px-4 py-2 text-white transition duration-300 hover:bg-sky-700">
+                    Comentar
+                </button>
+            </form>
+        </div>
+    }
+    else
+    {
+        <div class="mb-6 rounded-lg bg-gray-700 p-3 text-gray-300">
+            Debes <a href="/Account/Login?ReturnUrl=@Context.Request.Path@Context.Request.QueryString" class="text-sky-400 hover:text-sky-300">iniciar sesión</a> para comentar.
+        </div>
+    }
+
+    <div id="commentsList" class="space-y-4">
+        @* Los comentarios se cargarán aquí por JavaScript *@
     </div>
-    
-    <div class="space-y-4">
-        @{
-            // Comentarios simulados
-            var comments = new[]
-            {
-                new { User = "Usuario123", Content = "¡Gran video! Me encantó el contenido.", Time = "hace 2 horas" },
-                new { User = "VideoFan", Content = "Muy interesante, gracias por compartir.", Time = "hace 1 día" },
-                new { User = "Comentarista", Content = "Esperaba algo diferente, pero aún así me gustó.", Time = "hace 3 días"}
-            };
-        }
-        
-        @foreach (var comment in comments)
-        {
-            <div class="bg-gray-700 rounded-lg p-3">
-                <div class="flex justify-between items-start">
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const commentForm = document.getElementById('commentForm');
+        const commentsList = document.getElementById('commentsList');
+        // Obtener videoId: si el commentForm no existe (usuario no logueado),
+        // necesitamos otra fuente para videoId si _Comments.cshtml se renderiza siempre.
+        // Asumamos que si _Comments.cshtml se renderiza, el @Model (videoId) está disponible.
+        // El script actual lo toma del form, que solo existe si está logueado.
+        // Si 'loadComments' debe funcionar incluso para usuarios no logueados para VER comentarios,
+        // videoId necesita una fuente más global en esta vista parcial o pasada explícitamente.
+
+        // Para asegurar que videoId esté disponible incluso si el formulario no lo está (para ver comentarios):
+        const videoIdForComments = document.getElementById('commentsList').closest('[data-main-video-id]')?.getAttribute('data-main-video-id') || '@Model';
+        // ^ Esto es un ejemplo, necesitarías poner data-main-video-id="@Model" en un div padre en Watch.cshtml
+        // o simplemente usar '@Model' si estás seguro que el script siempre tendrá acceso al @Model de _Comments.cshtml
+
+        // Simplificando por ahora, asumimos que si commentForm no existe, no se pueden agregar, pero sí ver (con el @Model).
+        const currentVideoId = '@Model';
+
+
+        function renderComment(comment) {
+            const commentDiv = document.createElement('div');
+            commentDiv.className = 'bg-gray-700 rounded-lg p-3 animate-fadeIn';
+
+            const userInitial = comment.user ? comment.user[0].toUpperCase() : '?';
+
+            commentDiv.innerHTML = `
+                <div class="flex items-start justify-between">
                     <div class="flex items-start">
-                        <div class="bg-gray-500 rounded-full h-8 w-8 flex items-center justify-center text-white font-bold mr-2">
-                            @comment.User[0]
+                        <div class="mr-2 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-500 font-bold text-white">
+                            ${userInitial}
                         </div>
                         <div>
                             <div class="flex items-center">
-                                <span class="text-white font-medium">@comment.User</span>
-                                <span class="text-gray-400 text-xs ml-2">@comment.Time</span>
+                                <span class="font-medium text-white">${comment.user || 'Anónimo'}</span>
+                                <span class="ml-2 text-xs text-gray-400">${comment.date}</span>
                             </div>
-                            <p class="text-gray-300 mt-1">@comment.Content</p>
+                            <p class="mt-1 whitespace-pre-line text-gray-300">${comment.content}</p>
                         </div>
                     </div>
                 </div>
-            </div>
+            `;
+            return commentDiv;
         }
-    </div>
-</div>
+
+        async function handleApiResponse(response) {
+        const contentType = response.headers.get('content-type');
+
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+
+            // Manejar redirecciones a login (común en APIs con auth)
+            if (text.includes('Login') || response.status === 401) {
+                throw new Error('Unauthorized');
+            }
+
+            // Manejar páginas de error HTML
+            if (text.trim().startsWith('<!DOCTYPE')) {
+                throw new Error('Server returned HTML instead of JSON');
+            }
+
+            throw new Error(text.substring(0, 100));
+        }
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || `HTTP error ${response.status}`);
+        }
+
+        return response.json();
+    }
+
+        function loadComments() {
+        fetch(`/Interacciones/GetComments?videoId=${currentVideoId}`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(handleApiResponse)
+        .then(commentsData => { // Renombrado a commentsData para claridad
+            commentsList.innerHTML = ''; // Limpiar comentarios anteriores
+
+            if (commentsData && commentsData.length > 0) {
+                commentsData.forEach(comment => {
+                    const commentElement = renderComment(comment);
+                    commentsList.appendChild(commentElement);
+                });
+            } else {
+                commentsList.innerHTML = '<p class="text-gray-400">No hay comentarios aún. ¡Sé el primero!</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error al cargar comentarios:', error);
+            commentsList.innerHTML = `<p class="text-red-400">Error al cargar comentarios: ${error.message}</p>`;
+            // Si el error es 'Unauthorized', podrías redirigir o mostrar un mensaje específico
+            if (error.message === 'Unauthorized') {
+                // Podrías mostrar un mensaje o incluso intentar una redirección suave
+                // dependiendo de tu flujo de autenticación.
+                commentsList.innerHTML += '<p class="text-yellow-400">Parece que tu sesión ha expirado. Intenta recargar la página o iniciar sesión de nuevo.</p>';
+            }
+        });
+    }
+
+        if (commentForm) {
+            commentForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                const contenidoInput = document.getElementById('commentContent');
+                const contenido = contenidoInput.value.trim();
+                const tokenInput = this.querySelector('input[name="__RequestVerificationToken"]');
+
+                if (!contenido) {
+                    alert("El comentario no puede estar vacío.");
+                    return;
+                }
+                if (!tokenInput || !tokenInput.value) { // Asegurarse que tokenInput.value exista
+                    console.error('Anti-forgery token no encontrado o vacío.');
+                    alert('Error de seguridad. Intenta recargar la página.');
+                    return;
+                }
+                const token = tokenInput.value;
+
+                const formData = new FormData();
+                formData.append('videoId', currentVideoId); // Usar currentVideoId
+                formData.append('contenido', contenido);
+                formData.append('__RequestVerificationToken', token);
+
+                fetch('/Interacciones/AddComment', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json()
+                            .then(err => { throw new Error(err.message || `Error del servidor: ${response.status}`) })
+                            .catch(() => { throw new Error(`Error del servidor: ${response.status} ${response.statusText}`) });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success && data.comment) { // Verificar que data.comment exista
+                        contenidoInput.value = '';
+                        const newCommentElement = renderComment(data.comment);
+                        if (commentsList.firstChild && commentsList.firstChild.textContent === 'No hay comentarios aún. ¡Sé el primero!') {
+                            commentsList.innerHTML = '';
+                        }
+                        commentsList.insertBefore(newCommentElement, commentsList.firstChild);
+                        // Considera si realmente necesitas recargar todos los comentarios después de añadir uno.
+                        // Si la respuesta de AddComment ya tiene el comentario formateado, insertarlo es más eficiente.
+                        // loadComments(); // Descomentar si prefieres recargar todo.
+                    } else {
+                        alert('Error al agregar comentario: ' + (data.message || 'Respuesta inesperada del servidor.'));
+                        if (data.message && data.message.includes("Usuario no autenticado")) {
+                            window.location.href = '/Account/Login';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error en fetch AddComment:', error);
+                    alert(`Ocurrió un error al enviar tu comentario. (${error.message})`);
+                });
+            });
+        }
+
+        loadComments();
+    });
+</script>
+<style>
+    .animate-fadeIn {
+        animation: fadeIn 0.5s ease-out;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
