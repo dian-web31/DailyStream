@@ -17,8 +17,6 @@ public partial class DailystreamContext : DbContext
 
     public virtual DbSet<Comentario> Comentarios { get; set; }
 
-    public virtual DbSet<Dislike> Dislikes { get; set; }
-
     public virtual DbSet<Like> Likes { get; set; }
 
     public virtual DbSet<Usuario> Usuarios { get; set; }
@@ -50,22 +48,22 @@ public partial class DailystreamContext : DbContext
                 .HasConstraintName("fk_comentario_usuario");
         });
 
-        modelBuilder.Entity<Dislike>(entity =>
-        {
-            entity.HasKey(e => new { e.Idusuario, e.Idvideo }).HasName("pk_dislike");
+        //modelBuilder.Entity<Dislike>(entity =>
+        //{
+        //    entity.HasKey(e => new { e.Idusuario, e.Idvideo }).HasName("pk_dislike");
 
-            entity.ToTable("dislike");
+        //    entity.ToTable("dislike");
 
-            entity.Property(e => e.Idusuario).HasColumnName("idusuario");
-            entity.Property(e => e.Idvideo)
-                .HasMaxLength(50)
-                .IsUnicode(false)
-                .HasColumnName("idvideo");
+        //    entity.Property(e => e.Idusuario).HasColumnName("idusuario");
+        //    entity.Property(e => e.Idvideo)
+        //        .HasMaxLength(50)
+        //        .IsUnicode(false)
+        //        .HasColumnName("idvideo");
 
-            entity.HasOne(d => d.IdusuarioNavigation).WithMany(p => p.Dislikes)
-                .HasForeignKey(d => d.Idusuario)
-                .HasConstraintName("fk_dislike_usuario");
-        });
+        //    entity.HasOne(d => d.IdusuarioNavigation).WithMany(p => p.Dislikes)
+        //        .HasForeignKey(d => d.Idusuario)
+        //        .HasConstraintName("fk_dislike_usuario");
+        //});
 
         modelBuilder.Entity<Like>(entity =>
         {
