@@ -104,32 +104,58 @@
         return response.json();
     }
 
-        function loadComments() {
-        fetch(`/Interacciones/GetComments?videoId=${currentVideoId}`, {
-            headers: { 'Accept': 'application/json' }
-        })
-        .then(handleApiResponse)
-        .then(commentsData => { // Renombrado a commentsData para claridad
-            commentsList.innerHTML = ''; // Limpiar comentarios anteriores
+            function loadComments() {
+        // Mostrar estado de carga
+        commentsList.innerHTML = '<p class="text-gray-400">Cargando comentarios...</p>';
 
-            if (commentsData && commentsData.length > 0) {
-                commentsData.forEach(comment => {
-                    const commentElement = renderComment(comment);
-                    commentsList.appendChild(commentElement);
-                });
+        fetch(`https://localhost:7248/Interacciones/GetComments?videoId=${currentVideoId}`, {
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+        .then(async response => {
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Error al cargar comentarios');
+            }
+
+            // Manejar caso donde la respuesta tiene success: false
+            if (data.success === false) {
+                throw new Error(data.message || data.details || 'Error del servidor');
+            }
+
+            return data;
+        })
+        .then(data => {
+            commentsList.innerHTML = '';
+
+            if (Array.isArray(data)) {
+                if (data.length === 0) {
+                    commentsList.innerHTML = '<p class="text-gray-400">No hay comentarios aún. ¡Sé el primero!</p>';
+                } else {
+                    data.forEach(comment => {
+                        commentsList.appendChild(renderComment(comment));
+                    });
+                }
             } else {
-                commentsList.innerHTML = '<p class="text-gray-400">No hay comentarios aún. ¡Sé el primero!</p>';
+                throw new Error('Formato de respuesta inesperado');
             }
         })
         .catch(error => {
             console.error('Error al cargar comentarios:', error);
-            commentsList.innerHTML = `<p class="text-red-400">Error al cargar comentarios: ${error.message}</p>`;
-            // Si el error es 'Unauthorized', podrías redirigir o mostrar un mensaje específico
-            if (error.message === 'Unauthorized') {
-                // Podrías mostrar un mensaje o incluso intentar una redirección suave
-                // dependiendo de tu flujo de autenticación.
-                commentsList.innerHTML += '<p class="text-yellow-400">Parece que tu sesión ha expirado. Intenta recargar la página o iniciar sesión de nuevo.</p>';
+
+            let errorMessage = 'Error al cargar comentarios';
+            if (error.message.includes('intern')) {
+                errorMessage = 'Problema temporal con el servidor. Intenta nuevamente.';
             }
+
+            commentsList.innerHTML = `
+                <div class="rounded-lg border border-red-400 bg-red-900/20 p-3">
+                    <p class="text-red-300">${errorMessage}</p>
+                    <p class="mt-1 text-xs text-red-400">${error.message}</p>
+                </div>
+            `;
         });
     }
 
