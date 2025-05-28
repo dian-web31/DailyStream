@@ -13,7 +13,5 @@ public partial class Usuario
 
     public virtual ICollection<Comentario> Comentarios { get; set; } = new List<Comentario>();
 
-    public virtual ICollection<Dislike> Dislikes { get; set; } = new List<Dislike>();
-
     public virtual ICollection<Like> Likes { get; set; } = new List<Like>();
 }

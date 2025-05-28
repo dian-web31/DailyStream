@@ -1,64 +1,151 @@
-@model DailyStream.Models.Video
+﻿@model DailyStream.Models.Video
 @{
     ViewData["Title"] = $"{Model.Title} - DailyStream";
+    // Layout = "_Layout"; // Asumo que ya tienes un layout
 }
 
 @await Html.PartialAsync("_Header")
 
-<main class="bg-gray-900 min-h-screen py-6">
+<main class="min-h-screen bg-gray-900 py-6">
     <div class="container mx-auto px-4">
-        <div class="flex flex-col lg:flex-row gap-6">
-            <div class="w-full lg:w-8/12 space-y-6">
-                <!-- Reproductor de video -->
-                <div class="bg-black rounded-lg overflow-hidden">
+        <div class="flex flex-col gap-6 lg:flex-row">
+            <div class="w-full space-y-6 lg:w-8/12">
+                <div class="overflow-hidden rounded-lg bg-black">
                     <div class="aspect-w-16 aspect-h-9">
-                        <iframe 
-                            src="https://www.dailymotion.com/embed/video/@Model.Id" 
-                            frameborder="0" 
-                            allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" 
-                            allowfullscreen
-                            class="w-full h-full"
-                        ></iframe>
+                        <iframe src="https://www.dailymotion.com/embed/video/@Model.Id"
+                                frameborder="0"
+                                allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+                                allowfullscreen
+                                class="h-full w-full"></iframe>
                     </div>
                 </div>
-                
-                <!-- Información del video -->
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <h1 class="text-white text-2xl font-bold mb-2">@Model.Title</h1>
-                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4">
-                        <div class="text-gray-400 mb-2 sm:mb-0">
+
+                @* Colocar un AntiForgeryToken aquí si no hay un formulario principal en la página que lo provea.
+                   Si tienes un <form method="post"> en algún lugar de la página (ej. en _Layout o _Header para logout),
+                   ese @Html.AntiForgeryToken() podría ser suficiente.
+                   Para estar seguros, y si no hay otro, podemos añadirlo aquí.
+                   Si el botón de like estuviera dentro de un <form>, el token estaría dentro de ese form.
+                   Como es un botón suelto, podemos tener un form "dummy" o solo el input.
+                *@
+                <div style="display:none;"> @Html.AntiForgeryToken() </div>
+
+
+                <div class="rounded-lg bg-gray-800 p-4">
+                    <h1 class="mb-2 text-2xl font-bold text-white">@Model.Title</h1>
+                    <div class="mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center">
+                        <div class="mb-2 text-gray-400 sm:mb-0">
                             <span class="font-medium">@Model.Channel</span>
                         </div>
                         <div class="flex items-center space-x-4">
                             <span class="flex items-center text-gray-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="mr-1 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                 </svg>
                                 @Model.ViewsTotal.ToString("N0") visualizaciones
                             </span>
-                            <button class="flex items-center text-gray-400 hover:text-sky-500 transition duration-300">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <button id="likeBtn"
+                                    class="flex items-center text-gray-400 transition duration-300 hover:text-sky-500"
+                                    data-video-id="@Model.Id">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="mr-1 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                                 </svg>
-                                @Model.Likes.ToString("N0")
+                                <span id="likeCount">0</span> @* Inicializar a 0, JS lo actualizará *@
                             </button>
                         </div>
                     </div>
                     <div class="border-t border-gray-700 pt-4">
-                        <p class="text-gray-300 whitespace-pre-line">@(string.IsNullOrEmpty(Model.Description) ? "Sin descripción disponible." : Model.Description)</p>
+                        <p class="whitespace-pre-line text-gray-300">@(string.IsNullOrEmpty(Model.Description) ? "Sin descripción disponible." : Model.Description)</p>
                     </div>
                 </div>
-                
-                <!-- Comentarios -->
+
                 @await Html.PartialAsync("_Comments", Model.Id)
             </div>
-            
+
             <div class="w-full lg:w-4/12">
                 @await Html.PartialAsync("_RelatedVideos", ViewBag.RelatedVideos as List<DailyStream.Models.Video>)
             </div>
         </div>
     </div>
 </main>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const likeBtn = document.getElementById('likeBtn');
+        const videoId = likeBtn.getAttribute('data-video-id');
+        const likeCountSpan = document.getElementById('likeCount');
+        const antiForgeryTokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+
+        function updateLikeButton(isLiked, likes) {
+            likeCountSpan.textContent = likes;
+            if (isLiked) {
+                likeBtn.classList.add('text-sky-500');
+                likeBtn.classList.remove('text-gray-400');
+            } else {
+                likeBtn.classList.add('text-gray-400');
+                likeBtn.classList.remove('text-sky-500');
+            }
+        }
+
+        // Verificar estado inicial del like
+        fetch(`/Interacciones/GetLikeStatus?videoId=${videoId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.likes !== undefined && data.isLiked !== undefined) {
+                     updateLikeButton(data.isLiked, data.likes);
+                } else {
+                    console.error('Error al obtener estado de like:', data.message);
+                    likeCountSpan.textContent = 'N/A'; // O algún indicador de error
+                }
+            })
+            .catch(error => {
+                console.error('Error en fetch GetLikeStatus:', error);
+                likeCountSpan.textContent = 'Error';
+            });
+
+        // Manejar clic en like
+        likeBtn.addEventListener('click', function() {
+            if (!antiForgeryTokenInput) {
+                console.error('Anti-forgery token no encontrado.');
+                alert('Error de seguridad. Intenta recargar la página.');
+                return;
+            }
+            const token = antiForgeryTokenInput.value;
+
+            const formData = new FormData();
+            formData.append('videoId', videoId);
+            formData.append('__RequestVerificationToken', token);
+
+            fetch('/Interacciones/ToggleLike', {
+                method: 'POST',
+                body: formData // No es necesario 'Content-Type' con FormData, el navegador lo establece
+            })
+            .then(response => {
+                if (!response.ok) { // Verificar si la respuesta HTTP no fue exitosa
+                    throw new Error(`Error en la petición: ${response.status} ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    updateLikeButton(data.action === 'added', data.likes);
+                } else {
+                    // Podrías mostrar un mensaje al usuario aquí
+                    console.error('Error al dar like:', data.message || 'Error desconocido');
+                    // Si el error es por no estar autenticado, podrías redirigir al login
+                    if (data.message && data.message.includes("Usuario no autenticado")) {
+                        window.location.href = '/Account/Login';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error en fetch ToggleLike:', error);
+                // Aquí también podrías manejar la redirección si el servidor devuelve 401 (Unauthorized)
+                // o si el error específico indica un problema de autenticación.
+                 alert('Ocurrió un error al procesar tu solicitud. Verifica tu conexión o intenta iniciar sesión.');
+            });
+        });
+    });
+</script>
 
 @await Html.PartialAsync("_Footer")
